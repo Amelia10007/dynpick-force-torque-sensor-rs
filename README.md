@@ -4,7 +4,7 @@
 
 Device driver for [Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/) written in pure Rust.
 
-Inspired the works of [Tokyo Opensource Robotics Kyokai Association](https://github.com/tork-a/dynpick_driver).
+Inspired the works of [Tokyo Opensource Robotics Kyokai Association](https://github.com/tork-a/dynpick_driver) (It is written in C/C++ and for ROS).
 
 # Example
 ```rust
@@ -24,9 +24,13 @@ It may be required to customize udev rules if you use usb-connected sensors.
 
 # Demo
 ## Demo for an usb-connected sensor
+1. Clone this repository.
 1. Setup udev rule by using [this shell script](./examples/setup_udev_rule.sh).
 1. Connect your sensor.
-1. run example by ```cargo run --example demo```
+1. Run the example by ```cargo run --example demo```
+
+# License
+MIT
 
 # Note
-We tested this crate only by WDF-6M200-3 sensor because we have no other dynpick sensor.
+I tested this crate only by WDF-6M200-3 sensor because I have no other dynpick sensor.
