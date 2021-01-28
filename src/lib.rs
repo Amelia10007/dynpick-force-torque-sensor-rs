@@ -17,7 +17,7 @@
 //!
 //! sensor.zeroed_next().unwrap(); // Calibration
 //!
-//! let wrench = sensor.update_wrench().unwrap();
+//! let wrench = sensor.update().unwrap();
 //! println!("Force: {}, Torque: {}", wrench.force, wrench.torque);
 //! ```
 //!
