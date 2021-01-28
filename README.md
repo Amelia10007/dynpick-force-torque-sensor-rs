@@ -8,22 +8,36 @@ Inspired the works of [Tokyo Opensource Robotics Kyokai Association](https://git
 
 # Example
 ```rust
-use dynpick_force_torque_sensor::DynpickSensor;
+use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
 
-let mut sensor = DynpickSensor::open("/dev/ttyUSB0").unwrap();
+let sensitivity = {
+    let force = Triplet::new(24.9, 24.6, 24.5);
+    let torque = Triplet::new(1664.7, 1639.7, 1638.0);
+    Sensitivity::new(force, torque)
+};
+
+let mut sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
+    // Automatic sensitivity set is also available. See the document in detail.
+    .map(|b| b.set_sensitivity_manually(sensitivity))
+    .and_then(|b| b.build())
+    .unwrap();
+
+sensor.zeroed_next().unwrap(); // Calibration
 
 let wrench = sensor.update_wrench().unwrap();
-
-println!("Wrench: {:?}", wrench);
+println!("Force: {}, Torque: {}", wrench.force, wrench.torque);
 ```
+
+# Dependency under Linux environment
+`libudev-dev` is required under Linux environment. Please install it by  
+`$ sudo apt install libudev-dev`
 
 # Setup
 It may be required to customize udev rules if you use usb-connected sensors.
 
 [This shell script](./examples/setup_udev_rule.sh) can be useful for customize (see the file in detail).
 
-# Demo
-## Demo for an usb-connected sensor
+# Run a demo for an usb-connected sensor
 1. Clone this repository.
 1. Setup udev rule by using [this shell script](./examples/setup_udev_rule.sh).
 1. Connect your sensor.
