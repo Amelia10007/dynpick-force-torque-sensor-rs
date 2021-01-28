@@ -1,5 +1,5 @@
 use dynpick_force_torque_sensor::serialport;
-use dynpick_force_torque_sensor::DynpickSensor;
+use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
 
 fn search_usb_sensor_paths() -> Result<Option<String>, serialport::Error> {
     // Wacoh-tech vendor ID.
@@ -42,9 +42,19 @@ fn main() {
     };
     println!("Found a sensor. Path: {}", path);
 
+    // Specify the sensitivity manually.
+    let sensitivity = {
+        let force = Triplet::new(24.9, 24.6, 24.5);
+        let torque = Triplet::new(1664.7, 1639.7, 1638.0);
+        Sensitivity::new(force, torque)
+    };
+
     // Connect the found sensor.
-    let mut sensor = match DynpickSensor::open(path) {
-        Ok(sensor) => sensor,
+    let sensor = DynpickSensorBuilder::open(path)
+        .map(|b| b.calibrate_manually(sensitivity))
+        .and_then(|b| b.build());
+    let mut sensor = match sensor {
+        Ok(s) => s,
         Err(e) => {
             println!("{}", e);
             return;
@@ -53,7 +63,7 @@ fn main() {
     println!("Successfully opened the sensor.");
 
     // Correct zero-point
-    match sensor.offset() {
+    match sensor.zeroed_next() {
         Ok(_) => println!("Offset the sensor."),
         Err(e) => {
             println!("An error occurred during offset: {}", e);
@@ -62,13 +72,18 @@ fn main() {
     }
 
     // Repeatedly receive wrenches from the sensor.
-    let measurement_count = 100;
+    let measurement_count = 1000;
     for i in 0..measurement_count {
-        match sensor.update_wrench() {
-            Ok(w) => println!("[{}/{}] wrench: {:?}", i + 1, measurement_count, w),
+        std::thread::sleep(sensor.inner_port().timeout());
+
+        match sensor.update() {
+            Ok(w) => println!("[{}/{}] {:?}", i + 1, measurement_count, w),
             Err(e) => println!("[{}/{}] {}", i + 1, measurement_count, e),
         }
     }
+
+    // Info
+    println!("Product info: {:?}", sensor.receive_product_info());
 
     println!("dynpick-force-torque-sensor demo finished.");
 }
