@@ -13,7 +13,7 @@ fn search_usb_sensor_paths() -> Result<Option<String>, serialport::Error> {
         .filter(move |port| match &port.port_type {
             // Takes only USB-connected device
             serialport::SerialPortType::UsbPort(usb) => {
-                usb.vid == product_id && usb.vid == vendor_id
+                usb.vid == vendor_id && usb.pid == product_id
             }
             _ => false,
         })
