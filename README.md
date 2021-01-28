@@ -2,7 +2,7 @@
 [![crates.io](https://img.shields.io/crates/v/dynpick-force-torque-sensor-rs.svg)](https://crates.io/crates/dynpick-force-torque-sensor)
 [![Build Status](https://travis-ci.org/Amelia10007/dynpick-force-torque-sensor-rs.svg?branch=master)](https://travis-ci.org/Amelia10007/dynpick-force-torque-sensor-rs)
 
-Device driver for [Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/) written in pure Rust.
+Unofficial device driver for [Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/) written in pure Rust.
 
 Inspired the works of [Tokyo Opensource Robotics Kyokai Association](https://github.com/tork-a/dynpick_driver) (It is written in C/C++ and for ROS).
 

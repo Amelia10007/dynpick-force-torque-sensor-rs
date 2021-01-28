@@ -1,4 +1,4 @@
-//! Device driver for [Dyn Pick, Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/).
+//! Unofficial device driver for [Dyn Pick, Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/).
 //! # Examples
 //! ```no_run
 //! use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
@@ -24,6 +24,14 @@
 //! # Dependency under Linux environment
 //! `libudev-dev` is required under Linux environment. Please install it by  
 //! `sudo apt install libudev-dev`
+//!
+//! # Setup
+//! It may be required to customize udev rules if you use usb-connected sensors.
+//!
+//! [This shell script](https://github.com/Amelia10007/dynpick-force-torque-sensor-rs/blob/master/examples/setup_udev_rule.sh) can be useful for customize (see the file in detail).
+//!
+//! # Note
+//! I tested this crate only by WDF-6M200-3 sensor because I have no other dynpick sensor.
 #![warn(missing_docs)]
 
 use itertools::Itertools;
