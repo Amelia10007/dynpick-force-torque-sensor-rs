@@ -1,4 +1,29 @@
-//! Device driver for Wacoh-tech force-torque sensor.
+//! Device driver for [Dyn Pick, Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/).
+//! # Examples
+//! ```no_run
+//! use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
+//!
+//! let sensitivity = {
+//!     let force = Triplet::new(24.9, 24.6, 24.5);
+//!     let torque = Triplet::new(1664.7, 1639.7, 1638.0);
+//!     Sensitivity::new(force, torque)
+//! };
+//!
+//! let mut sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
+//!     // Automatic sensitivity set is also available. See the document in detail.
+//!     .map(|b| b.set_sensitivity_manually(sensitivity))
+//!     .and_then(|b| b.build())
+//!     .unwrap();
+//!
+//! sensor.zeroed_next().unwrap(); // Calibration
+//!
+//! let wrench = sensor.update_wrench().unwrap();
+//! println!("Force: {}, Torque: {}", wrench.force, wrench.torque);
+//! ```
+//!
+//! # Dependency under Linux environment
+//! `libudev-dev` is required under Linux environment. Please install it by  
+//! `sudo apt install libudev-dev`
 #![warn(missing_docs)]
 
 use itertools::Itertools;
