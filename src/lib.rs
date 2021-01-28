@@ -1,4 +1,5 @@
 //! Device driver for Wacoh-tech force-torque sensor.
+#![warn(missing_docs)]
 
 use itertools::Itertools;
 pub use pair_macro::Triplet;
@@ -10,31 +11,47 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::time::Duration;
 
-pub struct Calibrated;
+/// Marker type for builder.
+pub struct Ready;
 
-pub struct NotCalibratedYet;
+/// Marker type for builder.
+pub struct SensitivityNotSetYet;
 
-const WRENCH_RESPONSE_LENGTH: usize = 27;
-
+/// Builder of a connection to a dynpick sensor.
+/// # Examples
+/// ```no_run
+/// use dynpick_force_torque_sensor::DynpickSensorBuilder;
+///
+/// let sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
+///     .and_then(|b| b.set_sensitivity_by_embedded_data())
+///     .and_then(|b| b.build())
+///     .unwrap();
+/// ```
 pub struct DynpickSensorBuilder<C> {
     /// Serial port device.
     port: Box<dyn SerialPort>,
-    /// How much the digital value from the sensor increses per 1 Newton (for force) and per 1 NewtonMeter (for torque).
+    /// The sensitivity of the connected sensor.
     sensitivity: Sensitivity,
     /// 👻
     _calibrated: PhantomData<fn() -> C>,
 }
 
-impl DynpickSensorBuilder<NotCalibratedYet> {
+impl DynpickSensorBuilder<SensitivityNotSetYet> {
     /// Connects to the dynpick force torque sensor.
     /// # Params
     /// 1. `path` The sensor's path.
     ///
     /// # Returns
-    /// `Ok(builder)` if successfully connected, `Err(reason)` if failed.
+    /// `Ok(builder)` if successfully connected, `Err(reason)` if failed.  
+    /// Before you use the sensor, you need to calibrate the sensor by calling a calibration method.
+    /// See also [`Self::set_sensitivity_by_embedded_data`] or [`Self::set_sensitivity_manually`].
+    ///
+    /// # Examples
+    /// See the example [here](`DynpickSensorBuilder`)
     pub fn open<'a>(
         path: impl Into<Cow<'a, str>>,
-    ) -> Result<DynpickSensorBuilder<NotCalibratedYet>, Error> {
+    ) -> Result<DynpickSensorBuilder<SensitivityNotSetYet>, Error> {
+        // These settings were determined according to the hardware configuration.
         let port = serialport::new(path, 921600)
             .data_bits(DataBits::Eight)
             .flow_control(FlowControl::None)
@@ -56,8 +73,23 @@ impl DynpickSensorBuilder<NotCalibratedYet> {
         Ok(builder)
     }
 
-    /// Calibrate the sensor by using the specified sensitivity.
-    pub fn calibrate_manually(self, sensitivity: Sensitivity) -> DynpickSensorBuilder<Calibrated> {
+    ///  Set the [`Sensitivity`] of the connected sensor by using the specified sensitivity.
+    /// # Examples
+    /// ```no_run
+    /// use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
+    ///
+    /// let sensitivity = {
+    ///     let force = Triplet::new(24.9, 24.6, 24.5);
+    ///     let torque = Triplet::new(1664.7, 1639.7, 1638.0);
+    ///     Sensitivity::new(force, torque)
+    /// };
+    ///
+    /// let sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
+    ///     .map(|b| b.set_sensitivity_manually(sensitivity))
+    ///     .and_then(|b| b.build())
+    ///     .unwrap();
+    /// ```
+    pub fn set_sensitivity_manually(self, sensitivity: Sensitivity) -> DynpickSensorBuilder<Ready> {
         DynpickSensorBuilder {
             port: self.port,
             sensitivity,
@@ -65,15 +97,23 @@ impl DynpickSensorBuilder<NotCalibratedYet> {
         }
     }
 
-    /// Calibrate the sensor, reading its sensitivity.
-    pub fn calibrate_by_embedded_data(mut self) -> Result<DynpickSensorBuilder<Calibrated>, Error> {
-        const RES_LEN: usize = 46;
+    /// Set the [`Sensitivity`] of the connected sensor, reading its sensitivity from it.  
+    /// Some sensors may not support this functionality (`Err(_)` will be returned under this situation).
+    /// # Examples
+    /// See the example [here](`DynpickSensorBuilder`)
+    ///
+    /// # Note
+    /// This method has not been tested yet because my sensor (WDF-6M200-3) does not support this functionality.
+    pub fn set_sensitivity_by_embedded_data(
+        mut self,
+    ) -> Result<DynpickSensorBuilder<Ready>, Error> {
+        const SENSITIVITY_RESPONSE_LENGTH: usize = 46;
 
+        // Send and wait.
         self.port.write_all(&['p' as u8]).map_err(Error::IO)?;
-
         std::thread::sleep(self.port.timeout());
 
-        let mut res = [0; RES_LEN];
+        let mut res = [0; SENSITIVITY_RESPONSE_LENGTH];
         self.port.read_exact(&mut res).map_err(Error::IO)?;
 
         let res = std::str::from_utf8(&res).or(Err(Error::Utf8(res.to_vec())))?;
@@ -89,17 +129,20 @@ impl DynpickSensorBuilder<NotCalibratedYet> {
 
         let sensitivity = Sensitivity::new(force, torque);
 
-        Ok(self.calibrate_manually(sensitivity))
+        Ok(self.set_sensitivity_manually(sensitivity))
     }
 }
 
-impl DynpickSensorBuilder<Calibrated> {
+impl DynpickSensorBuilder<Ready> {
+    /// Consuming this builder, attempts to construct a sensor instance.
     pub fn build(self) -> Result<DynpickSensor, Error> {
         let mut sensor = DynpickSensor {
             port: self.port,
             last_wrench: Wrench::zeroed(),
             sensitivity: self.sensitivity,
         };
+
+        // First single data request.
         sensor.request_next_wrench()?;
 
         Ok(sensor)
@@ -112,71 +155,35 @@ pub struct DynpickSensor {
     port: Box<dyn SerialPort>,
     /// The latest wrench acquired by `update_wrench`.
     last_wrench: Wrench,
-    /// How much the digital value from the sensor increses per 1 Newton (for force) and per 1 NewtonMeter (for torque).
+    /// The sensitivity of the connected sensor.
     sensitivity: Sensitivity,
 }
 
 impl DynpickSensor {
-    /// Returns the latest wrench without connecting the sensor.
+    /// Returns the latest wrench that is stored in this instance without communicaing the sensor.
     ///
-    /// Use `update_wrench()` to obtain a new wrench from the sensor.
+    /// Use [`Self::update`] instead to obtain a new wrench from the sensor.
+    /// # Returns
     /// `Ok(sensor)` if successfully connected, `Err(reason)` if failed.
     pub fn last_wrench(&self) -> Wrench {
         self.last_wrench
     }
 
-    /// Updates the latest wrench, communicating to the sensor.
+    /// Returns the sensitivity of this sensor.
+    pub fn sensitivity(&self) -> Sensitivity {
+        self.sensitivity
+    }
+
+    /// Communicating to the sensor, updates the latest wrench.
     /// # Returns
     /// `Ok(wrench)` if succeeds, `Err(reason)` if failed.
     pub fn update(&mut self) -> Result<Wrench, Error> {
+        const WRENCH_RESPONSE_LENGTH: usize = 27;
+
         let mut res = [0; WRENCH_RESPONSE_LENGTH];
         self.port.read_exact(&mut res).map_err(Error::IO)?;
 
-        self.last_wrench = self.to_wrench(&res)?;
-
-        //
-        self.request_next_wrench()?;
-
-        Ok(self.last_wrench)
-    }
-
-    pub fn zeroed_next(&mut self) -> Result<(), Error> {
-        self.port.write_all(&['O' as u8]).map_err(Error::IO)
-    }
-
-    pub fn receive_product_info(&mut self) -> Result<String, Error> {
-        self.port
-            .clear(serialport::ClearBuffer::All)
-            .map_err(Error::SerialPort)?;
-
-        self.port.write_all(&['V' as u8]).map_err(Error::IO)?;
-
-        std::thread::sleep(self.port.timeout());
-
-        let bytes = self.port.bytes_to_read().map_err(Error::SerialPort)?;
-        let mut res = vec![0; bytes as usize];
-
-        let info = match self.port.read(&mut res) {
-            Ok(_) => String::from_utf8(res.clone()).or(Err(Error::Utf8(res.to_vec()))),
-            Err(e) => Err(Error::IO(e)),
-        };
-
-        self.request_next_wrench()?;
-
-        info
-    }
-
-    /// Returns the reference to the serial port for the sensor.
-    pub fn inner_port(&self) -> &Box<dyn SerialPort> {
-        &self.port
-    }
-
-    fn request_next_wrench(&mut self) -> Result<(), Error> {
-        self.port.write_all(&['R' as u8]).map_err(Error::IO)
-    }
-
-    fn to_wrench(&self, buf: &[u8; WRENCH_RESPONSE_LENGTH]) -> Result<Wrench, Error> {
-        let res = std::str::from_utf8(buf).or(Err(Error::Utf8(buf.to_vec())))?;
+        let res = std::str::from_utf8(&res).or(Err(Error::Utf8(res.to_vec())))?;
 
         let (fx, fy, fz, mx, my, mz) = (0..6)
             .map(|i| 1 + i * 4)
@@ -199,7 +206,75 @@ impl DynpickSensor {
             .map(|d| d as f64)
             .map_entrywise(self.sensitivity.digital_per_newtonmeter, |d, s| d / s);
 
-        Ok(Wrench::new(force, torque))
+        self.last_wrench = Wrench::new(force, torque);
+
+        // Send a request to obtain a new wrench.
+        self.request_next_wrench()?;
+
+        Ok(self.last_wrench)
+    }
+
+    /// If this method succeeds, the next wrench acquired by [`Self::update`] will be zeroed.  
+    /// This methos is useful for zero-point calibration.
+    /// # Examples
+    /// ```no_run
+    /// use dynpick_force_torque_sensor::{DynpickSensorBuilder, Triplet};
+    ///
+    /// let mut sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
+    ///     .and_then(|b| b.set_sensitivity_by_embedded_data())
+    ///     .and_then(|b| b.build())
+    ///     .unwrap();
+    ///
+    /// sensor.zeroed_next().unwrap();
+    ///
+    /// let wrench = sensor.update().unwrap();
+    ///
+    /// assert_eq!(wrench.force, Triplet::new(0.0, 0.0, 0.0));
+    /// assert_eq!(wrench.torque, Triplet::new(0.0, 0.0, 0.0));
+    /// ```
+    pub fn zeroed_next(&mut self) -> Result<(), Error> {
+        self.port.write_all(&['O' as u8]).map_err(Error::IO)
+    }
+
+    /// Reads the product info from the sensor.
+    /// # Returns
+    /// `Ok(product_info)` if succeeds, `Err(reason)` if failed.
+    pub fn receive_product_info(&mut self) -> Result<String, Error> {
+        // Buffer may not be empty due to request_next_wrench() or its response.
+        self.port
+            .clear(serialport::ClearBuffer::All)
+            .map_err(Error::SerialPort)?;
+
+        // Send and wait.
+        self.port.write_all(&['V' as u8]).map_err(Error::IO)?;
+        std::thread::sleep(self.port.timeout());
+
+        // The response may be non-fixed size.
+        let bytes = self.port.bytes_to_read().map_err(Error::SerialPort)?;
+        let mut res = vec![0; bytes as usize];
+
+        let info = match self.port.read(&mut res) {
+            Ok(_) => match std::str::from_utf8(&res) {
+                Ok(str) => Ok(str.to_owned()),
+                Err(_) => Err(Error::Utf8(res)),
+            },
+            Err(e) => Err(Error::IO(e)),
+        };
+
+        // Restart sensing wrenches.
+        self.request_next_wrench()?;
+
+        info
+    }
+
+    /// Returns the reference to the serial port for the sensor.
+    pub fn inner_port(&self) -> &Box<dyn SerialPort> {
+        &self.port
+    }
+
+    /// Request single wrench.
+    fn request_next_wrench(&mut self) -> Result<(), Error> {
+        self.port.write_all(&['R' as u8]).map_err(Error::IO)
     }
 }
 
@@ -221,7 +296,11 @@ impl Display for Error {
         match self {
             Error::SerialPort(e) => write!(f, "SerialPort: {}", e),
             Error::IO(e) => write!(f, "IO: {}", e),
-            Error::Utf8(v) => write!(f, "The response is invalid for utf8: {:?}", v),
+            Error::Utf8(v) => write!(
+                f,
+                "The response from the sensor is invalid for utf8. Raw response: {:X?}",
+                v
+            ),
             Error::ParseResponse(res) => write!(
                 f,
                 "Failed to parse the response from the sensor. The response: {}",
@@ -262,13 +341,20 @@ impl Wrench {
     }
 }
 
+/// How much the digital value from the sensor increses per 1 Newton (for force) and per 1 NewtonMeter (for torque).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Sensitivity {
+    /// How much the digital value from the sensor increses per 1 Newton.
     digital_per_newton: Triplet<f64>,
+    /// How much the digital value from the sensor increses per 1 NewtonMeter.
     digital_per_newtonmeter: Triplet<f64>,
 }
 
 impl Sensitivity {
+    /// Initialize a new sensitivity of a sensor.
+    /// # Params
+    /// 1. `digital_per_newton` How much the digital value from the sensor increses per 1 Newton.
+    /// 1. `digital_per_newtonmeter` How much the digital value from the sensor increses per 1 NewtonMeter.
     pub fn new(
         digital_per_newton: Triplet<f64>,
         digital_per_newtonmeter: Triplet<f64>,

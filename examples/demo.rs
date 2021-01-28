@@ -51,7 +51,7 @@ fn main() {
 
     // Connect the found sensor.
     let sensor = DynpickSensorBuilder::open(path)
-        .map(|b| b.calibrate_manually(sensitivity))
+        .map(|b| b.set_sensitivity_manually(sensitivity))
         .and_then(|b| b.build());
     let mut sensor = match sensor {
         Ok(s) => s,
