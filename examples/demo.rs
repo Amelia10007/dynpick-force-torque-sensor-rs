@@ -1,7 +1,7 @@
 use dynpick_force_torque_sensor::serialport;
 use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
 
-fn search_usb_sensor_paths() -> Result<Option<String>, serialport::Error> {
+fn search_usb_sensor_path() -> Result<Option<String>, serialport::Error> {
     // Wacoh-tech vendor ID.
     let vendor_id = 0x10c4;
     // NOTE: The following product-ID may be specific for WDF-6M200-3.
@@ -29,7 +29,7 @@ fn main() {
     println!("Make sure setting udev rule. See examples/setup_udev_rule.sh in detail.");
 
     // Search USB-connected dynpick sensor.
-    let path = match search_usb_sensor_paths() {
+    let path = match search_usb_sensor_path() {
         Ok(Some(path)) => path,
         Ok(None) => {
             println!("No dynpick sensor is connected.");
