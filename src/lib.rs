@@ -186,7 +186,7 @@ impl DynpickSensorBuilder<Ready> {
 pub struct DynpickSensor {
     /// Serial port device.
     port: Box<dyn SerialPort>,
-    /// The latest wrench acquired by `update_wrench`.
+    /// The latest wrench acquired by `update`.
     last_wrench: Wrench,
     /// The sensitivity of the connected sensor.
     sensitivity: Sensitivity,
