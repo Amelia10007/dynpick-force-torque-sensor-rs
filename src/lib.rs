@@ -80,7 +80,7 @@ impl DynpickSensorBuilder<SensitivityNotSetYet> {
     /// See also [`Self::set_sensitivity_by_embedded_data`] or [`Self::set_sensitivity_manually`].
     ///
     /// # Examples
-    /// See the example [here](`DynpickSensorBuilder`)
+    /// See the example [here](`DynpickSensorBuilder`).
     pub fn open<'a>(
         path: impl Into<Cow<'a, str>>,
     ) -> Result<DynpickSensorBuilder<SensitivityNotSetYet>, Error> {
