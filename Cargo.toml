@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Amelia10007 <nat.horn.mk0426@gmail.com>"]
 edition = "2018"
 description = "Device driver for Wacoh-tech force-torque sensor written in pure Rust."
+repository = "https://github.com/Amelia10007/dynpick-force-torque-sensor-rs"
 keywords = ["driver", "sensor", "force", "torque", "wrench", "dynpick", "wacohtech"]
 categories = ["hardware-support"]
 license = "MIT"

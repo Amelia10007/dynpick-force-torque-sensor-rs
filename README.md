@@ -1,5 +1,5 @@
 # dynpick-force-torque-sensor
-[![crates.io](https://img.shields.io/crates/v/dynpick-force-torque-sensor-rs.svg)](https://crates.io/crates/dynpick-force-torque-sensor)
+[![crates.io](https://img.shields.io/crates/v/dynpick-force-torque-sensor.svg)](https://crates.io/crates/dynpick-force-torque-sensor)
 [![Build Status](https://travis-ci.org/Amelia10007/dynpick-force-torque-sensor-rs.svg?branch=master)](https://travis-ci.org/Amelia10007/dynpick-force-torque-sensor-rs)
 
 Unofficial device driver for [Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/) written in pure Rust.
