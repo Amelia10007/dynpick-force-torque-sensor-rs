@@ -56,7 +56,7 @@ pub struct SensitivityNotSetYet;
 /// use dynpick_force_torque_sensor::DynpickSensorBuilder;
 ///
 /// let sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
-///     .and_then(|b| b.set_sensitivity_by_embedded_data())
+///     .and_then(|b| b.set_sensitivity_by_builtin_data())
 ///     .and_then(|b| b.build())
 ///     .unwrap();
 /// ```
@@ -77,7 +77,7 @@ impl DynpickSensorBuilder<SensitivityNotSetYet> {
     /// # Returns
     /// `Ok(builder)` if successfully connected, `Err(reason)` if failed.  
     /// Before you use the sensor, you need to calibrate the sensor by calling a calibration method.
-    /// See also [`Self::set_sensitivity_by_embedded_data`] or [`Self::set_sensitivity_manually`].
+    /// See also [`Self::set_sensitivity_by_builtin_data`] or [`Self::set_sensitivity_manually`].
     ///
     /// # Examples
     /// See the example [here](`DynpickSensorBuilder`).
@@ -137,7 +137,7 @@ impl DynpickSensorBuilder<SensitivityNotSetYet> {
     ///
     /// # Note
     /// This method has not been tested yet because my sensor (WDF-6M200-3) does not support this functionality.
-    pub fn set_sensitivity_by_embedded_data(
+    pub fn set_sensitivity_by_builtin_data(
         mut self,
     ) -> Result<DynpickSensorBuilder<Ready>, Error> {
         const SENSITIVITY_RESPONSE_LENGTH: usize = 46;
@@ -254,7 +254,7 @@ impl DynpickSensor {
     /// use dynpick_force_torque_sensor::{DynpickSensorBuilder, Triplet};
     ///
     /// let mut sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
-    ///     .and_then(|b| b.set_sensitivity_by_embedded_data())
+    ///     .and_then(|b| b.set_sensitivity_by_builtin_data())
     ///     .and_then(|b| b.build())
     ///     .unwrap();
     ///
