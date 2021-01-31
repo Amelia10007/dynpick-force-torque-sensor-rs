@@ -8,17 +8,10 @@ Inspired the works of [Tokyo Opensource Robotics Kyokai Association](https://git
 
 # Example
 ```rust
-use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
-
-let sensitivity = {
-    let force = Triplet::new(24.9, 24.6, 24.5);
-    let torque = Triplet::new(1664.7, 1639.7, 1638.0);
-    Sensitivity::new(force, torque)
-};
+use dynpick_force_torque_sensor::DynpickSensorBuilder;
 
 let mut sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
-    // Automatic sensitivity set is also available. See the document in detail.
-    .map(|b| b.set_sensitivity_manually(sensitivity))
+    .and_then(|b| b.set_sensitivity_by_builtin_data())
     .and_then(|b| b.build())
     .unwrap();
 
@@ -33,7 +26,7 @@ println!("Force: {}, Torque: {}", wrench.force, wrench.torque);
 `$ sudo apt install libudev-dev`
 
 # Setup
-It may be required to customize udev rules if you use usb-connected sensors.
+It may be required to customize udev rules.
 
 [This shell script](./examples/setup_udev_rule.sh) can be useful for customize (see the file in detail).
 

@@ -1,17 +1,10 @@
 //! Unofficial device driver for [Dyn Pick, Wacoh-tech force-torque sensor](https://wacoh-tech.com/en/products/dynpick/).
 //! # Examples
 //! ```no_run
-//! use dynpick_force_torque_sensor::{DynpickSensorBuilder, Sensitivity, Triplet};
-//!
-//! let sensitivity = {
-//!     let force = Triplet::new(24.9, 24.6, 24.5);
-//!     let torque = Triplet::new(1664.7, 1639.7, 1638.0);
-//!     Sensitivity::new(force, torque)
-//! };
+//! use dynpick_force_torque_sensor::DynpickSensorBuilder;
 //!
 //! let mut sensor = DynpickSensorBuilder::open("/dev/ttyUSB0")
-//!     // Automatic sensitivity set is also available. See the document in detail.
-//!     .map(|b| b.set_sensitivity_manually(sensitivity))
+//!     .and_then(|b| b.set_sensitivity_by_builtin_data())
 //!     .and_then(|b| b.build())
 //!     .unwrap();
 //!
@@ -26,7 +19,7 @@
 //! `sudo apt install libudev-dev`
 //!
 //! # Setup
-//! It may be required to customize udev rules if you use usb-connected sensors.
+//! It may be required to customize udev rules.
 //!
 //! [This shell script](https://github.com/Amelia10007/dynpick-force-torque-sensor-rs/blob/master/examples/setup_udev_rule.sh) can be useful for customize (see the file in detail).
 //!
@@ -76,8 +69,7 @@ impl DynpickSensorBuilder<SensitivityNotSetYet> {
     ///
     /// # Returns
     /// `Ok(builder)` if successfully connected, `Err(reason)` if failed.  
-    /// Before you use the sensor, you need to calibrate the sensor by calling a calibration method.
-    /// See also [`Self::set_sensitivity_by_builtin_data`] or [`Self::set_sensitivity_manually`].
+    /// Before you use the sensor, you need to calibrate the sensor by calling [`Self::set_sensitivity_by_builtin_data`] or [`Self::set_sensitivity_manually`].
     ///
     /// # Examples
     /// See the example [here](`DynpickSensorBuilder`).
@@ -314,13 +306,15 @@ impl DynpickSensor {
 /// Represents an error occurred while communicating sensors.
 #[derive(Debug)]
 pub enum Error {
-    /// Failed to open the port for the sensor.
+    /// Failed to manipulate the port for the sensor.
     SerialPort(serialport::Error),
     /// Failed to read or write data during communication.
     IO(std::io::Error),
-    /// The reception from the sensor cannot be interpleted with UTF-8 format.
+    /// The received data cannot be interpleted with UTF-8.
+    /// Inner value is the raw reception.
     Utf8(Vec<u8>),
-    /// The reception format from the sensor is different from the expected one.
+    /// Received an unexpected format string.
+    /// Inner value is the raw string.
     ParseResponse(String),
 }
 
