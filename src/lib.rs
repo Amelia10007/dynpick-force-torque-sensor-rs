@@ -129,9 +129,7 @@ impl DynpickSensorBuilder<SensitivityNotSetYet> {
     ///
     /// # Note
     /// This method has not been tested yet because my sensor (WDF-6M200-3) does not support this functionality.
-    pub fn set_sensitivity_by_builtin_data(
-        mut self,
-    ) -> Result<DynpickSensorBuilder<Ready>, Error> {
+    pub fn set_sensitivity_by_builtin_data(mut self) -> Result<DynpickSensorBuilder<Ready>, Error> {
         const SENSITIVITY_RESPONSE_LENGTH: usize = 46;
 
         // Send and wait.
@@ -205,10 +203,17 @@ impl DynpickSensor {
     pub fn update(&mut self) -> Result<Wrench, Error> {
         const WRENCH_RESPONSE_LENGTH: usize = 27;
 
+        // Regardless of success or failure of receive and parse the messsage, request the next single data.
+        // If we do not so, after updating failed once, updating will fail everytime due to no reception from the sensor.
         let mut res = [0; WRENCH_RESPONSE_LENGTH];
-        self.port.read_exact(&mut res).map_err(Error::IO)?;
+        self.port
+            .read_exact(&mut res)
+            .map_err(Error::IO)
+            .finalize(|| self.request_next_wrench())?;
 
-        let res = std::str::from_utf8(&res).or(Err(Error::Utf8(res.to_vec())))?;
+        let res = std::str::from_utf8(&res)
+            .or(Err(Error::Utf8(res.to_vec())))
+            .finalize(|| self.request_next_wrench())?;
 
         let (fx, fy, fz, mx, my, mz) = (0..6)
             .map(|i| 1 + i * 4)
@@ -216,7 +221,8 @@ impl DynpickSensor {
             .map(|src| i32::from_str_radix(src, 16))
             .filter_map(Result::ok)
             .next_tuple()
-            .ok_or(Error::ParseResponse(res.to_owned()))?;
+            .ok_or(Error::ParseResponse(res.to_owned()))
+            .finalize(|| self.request_next_wrench())?;
 
         let digital_force = Triplet::new(fx, fy, fz);
         let digital_torque = Triplet::new(mx, my, mz);
@@ -389,6 +395,32 @@ impl Sensitivity {
         Self {
             digital_per_newton,
             digital_per_newtonmeter,
+        }
+    }
+}
+
+/// Helper trait
+trait ResultExt<T, E>: Sized {
+    /// # Returns
+    /// `Ok(v)` without calling `f` if itself is `Ok(v)`.  
+    /// `Err(e1)` if itself if `Err(e1)` and `f` returns `Ok()`.  
+    /// `Err(e2)` if itself if `Err(e1)` and `f` returns `Err(e2)`.
+    fn finalize<U, F>(self, f: F) -> Self
+    where
+        F: FnOnce() -> Result<U, E>;
+}
+
+impl<T, E> ResultExt<T, E> for Result<T, E> {
+    fn finalize<U, F>(self, f: F) -> Self
+    where
+        F: FnOnce() -> Result<U, E>,
+    {
+        match self {
+            Ok(value) => Ok(value),
+            Err(e1) => match f() {
+                Ok(_) => Err(e1),
+                Err(e2) => Err(e2),
+            },
         }
     }
 }
