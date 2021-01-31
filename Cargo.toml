@@ -13,6 +13,7 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+easy-ext = "0.2.6"
 itertools = "0.10.0"
 pair_macro = "0.1.4"
 serialport = "4.0.0"

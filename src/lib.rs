@@ -27,6 +27,7 @@
 //! I tested this crate only by WDF-6M200-3 sensor because I have no other dynpick sensor.
 #![warn(missing_docs)]
 
+use easy_ext::ext;
 use itertools::Itertools;
 pub use pair_macro::Triplet;
 pub use serialport;
@@ -399,18 +400,13 @@ impl Sensitivity {
     }
 }
 
-/// Helper trait
-trait ResultExt<T, E>: Sized {
+// Helper trait
+#[ext]
+impl<T, E>  Result<T, E> {
     /// # Returns
     /// `Ok(v)` without calling `f` if itself is `Ok(v)`.  
     /// `Err(e1)` if itself if `Err(e1)` and `f` returns `Ok()`.  
     /// `Err(e2)` if itself if `Err(e1)` and `f` returns `Err(e2)`.
-    fn finalize<U, F>(self, f: F) -> Self
-    where
-        F: FnOnce() -> Result<U, E>;
-}
-
-impl<T, E> ResultExt<T, E> for Result<T, E> {
     fn finalize<U, F>(self, f: F) -> Self
     where
         F: FnOnce() -> Result<U, E>,
