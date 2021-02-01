@@ -1,9 +1,23 @@
 language: rust
 rust: stable
 env: RUST_BACKTRACE=full
+
 os:
 - linux
 - osx
 - windows
+
+# before_install:
+# - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+#     sudo apt-get -y install libudev-dev;
+#   fi
+
+# libudev-dev is required in Linux platform
+# because serialport, a dependent crate requires it.
+addons:
+  apt:
+    packages:
+    - libudev-dev
+
 script:
 - "cargo test"
