@@ -28,11 +28,11 @@ println!("Force: {}, Torque: {}", wrench.force, wrench.torque);
 # Setup
 It may be required to customize udev rules.
 
-[This shell script](./examples/setup_udev_rule.sh) can be useful for customize (see the file in detail).
+[This shell script](https://github.com/Amelia10007/dynpick-force-torque-sensor-rs/blob/master/examples/setup_udev_rule.sh) can be useful for customize (see the file in detail).
 
 # Run a demo for an usb-connected sensor
-1. Clone this repository.
-1. Setup udev rule by using [this shell script](./examples/setup_udev_rule.sh).
+1. Clone [this repository](https://github.com/Amelia10007/dynpick-force-torque-sensor-rs).
+1. Setup udev rule by using [this shell script](https://github.com/Amelia10007/dynpick-force-torque-sensor-rs/blob/master/examples/setup_udev_rule.sh).
 1. Connect your sensor.
 1. Run the example by ```cargo run --example demo```
 
